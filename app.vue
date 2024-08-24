@@ -121,7 +121,7 @@ const handleAnalyzeRequest = async () => {
             formData.append('file', file.value);
 
             const response = await axios.post(
-                'http://62.146.234.202:86/data/v1/read_spatial_data?file_type=geojson',
+                'https://api.simtaru-belitung.site/data/v1/read_spatial_data?file_type=geojson',
                 formData,
                 {
                     headers: {
