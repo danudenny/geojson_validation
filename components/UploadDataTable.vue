@@ -162,6 +162,15 @@
                             <th
                                 class="py-2 px-4 border-b border-green-200 text-green-800"
                             >
+                                <input
+                                    type="checkbox"
+                                    v-model="selectAll"
+                                    @change="toggleSelectAll"
+                                />
+                            </th>
+                            <th
+                                class="py-2 px-4 border-b border-green-200 text-green-800"
+                            >
                                 ID
                             </th>
                             <th
@@ -235,7 +244,13 @@
                                 v-show="analysisResults"
                                 class="py-2 px-4 border-b border-green-200 text-green-800"
                             >
-                                Duplicated With (?)
+                                Duplicated Reason (?)
+                            </th>
+                            <th
+                                v-show="analysisResults"
+                                class="py-2 px-4 border-b border-green-200 text-green-800"
+                            >
+                                Actions
                             </th>
                         </tr>
                     </thead>
@@ -245,6 +260,13 @@
                             :key="item.id"
                             class="hover:bg-green-50"
                         >
+                            <td class="py-2 px-4 border-b border-green-100">
+                                <input
+                                    type="checkbox"
+                                    v-model="selectedItems"
+                                    :value="item.id"
+                                />
+                            </td>
                             <td class="py-2 px-4 border-b border-green-100">
                                 {{
                                     !analysisResults
@@ -262,19 +284,19 @@
                                 }}
                             </td>
                             <td class="py-2 px-4 border-b border-green-100">
-                                {{ item.data.properties.Supplier }}
+                                {{ item.data.properties.Supplier || '-' }}
                             </td>
                             <td class="py-2 px-4 border-b border-green-100">
-                                {{ item.data.properties.Plot_ID }}
+                                {{ item.data.properties.Plot_ID || '-' }}
                             </td>
                             <td class="py-2 px-4 border-b border-green-100">
-                                {{ item.data.properties.Farmer_ID }}
+                                {{ item.data.properties.Farmer_ID || '-' }}
                             </td>
                             <td class="py-2 px-4 border-b border-green-100">
-                                {{ item.data.properties.Plot_Size }}
+                                {{ item.data.properties.Plot_Size || '-' }}
                             </td>
                             <td class="py-2 px-4 border-b border-green-100">
-                                {{ item.data.properties.Farmer_Name }}
+                                {{ item.data.properties.Farmer_Name || '-' }}
                             </td>
                             <td
                                 v-show="analysisResults"
@@ -340,7 +362,37 @@
                                 v-show="analysisResults"
                                 class="py-2 px-4 border-b border-green-100"
                             >
-                                {{ item.data.properties.duplicated_with }}
+                                {{
+                                    getDuplicateReason(
+                                        item.data.properties.duplicate_reason
+                                    )
+                                }}
+                            </td>
+
+                            <td
+                                v-show="analysisResults"
+                                class="py-2 px-4 border-b border-green-100"
+                            >
+                                <button
+                                    @click="showOnMap(item)"
+                                    class="bg-blue-500 hover:bg-blue-600 text-white p-1 rounded-full transition duration-150 ease-in-out"
+                                    title="Show on Map"
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class="h-4 w-4"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
+                                        />
+                                    </svg>
+                                </button>
                             </td>
                         </tr>
                     </tbody>
@@ -400,7 +452,26 @@ const isOnLandQuery = ref('');
 const validityQuery = ref('');
 const isDuplicatedQuery = ref('');
 
-const emit = defineEmits(['analyze-request']);
+const selectedItems = ref([]);
+const selectAll = ref(false);
+
+const showOnMap = (item) => {
+    emit('show-on-map', item);
+};
+
+const emit = defineEmits(['analyze-request', 'show-on-map']);
+
+const toggleSelectAll = () => {
+    if (selectAll.value) {
+        selectedItems.value = visibleData.value.map((item) => item.id);
+    } else {
+        selectedItems.value = [];
+    }
+};
+
+watch(selectedItems, (newValue) => {
+    selectAll.value = newValue.length === visibleData.value.length;
+});
 
 const filteredData = computed(() => {
     return geojsonData.value.filter((item) => {
@@ -475,6 +546,17 @@ const loadMoreData = () => {
     }
 };
 
+const getDuplicateReason = (reason) => {
+    switch (reason) {
+        case 'polygon_duplicate':
+            return 'Polygon Duplicate';
+        case 'internal_duplicate_points':
+            return 'Internal Duplicate Points';
+        default:
+            return '-';
+    }
+};
+
 const onScroll = () => {
     if (tableContainer.value) {
         const { scrollTop, scrollHeight, clientHeight } = tableContainer.value;
@@ -514,7 +596,16 @@ const exportToExcel = async () => {
     try {
         const allData = await geojsonStore.getAllGeoJSON();
 
-        const excelData = allData.map((item) => ({
+        let dataToExport;
+        if (selectedItems.value.length > 0) {
+            dataToExport = allData.filter((item) =>
+                selectedItems.value.includes(item.id)
+            );
+        } else {
+            dataToExport = allData;
+        }
+
+        const excelData = dataToExport.map((item) => ({
             ID: item.data.properties.ID,
             Supplier: item.data.properties.Supplier,
             Plot_ID: item.data.properties.Plot_ID,
