@@ -97,9 +97,6 @@ import { geojsonStore } from './stores/geojsonStore';
 import UploadDataTable from './components/UploadDataTable.vue';
 import axios from 'axios';
 
-const MAPBOX_ACCESS_TOKEN =
-    'pk.eyJ1IjoiZGFudWRlbm5qIiwiYSI6ImNsbjRmZWRzYjA0ZGgya3FoOWZyYTFnczIifQ.ZCLrfouIIbufGF-T3tBj9Q';
-
 const file = ref(null);
 const uploadProgress = ref(0);
 const fileInput = ref(null);
@@ -138,10 +135,8 @@ const handleAnalyzeRequest = async () => {
             });
         } catch (error) {
             console.error('Error analyzing data:', error);
-            // Handle error (e.g., show error message to user)
         }
     } else {
-        // Handle case when no file is uploaded
         console.error('No file uploaded');
     }
 };

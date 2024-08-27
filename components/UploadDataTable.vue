@@ -6,7 +6,42 @@
             :class="analysisResults ? 'w-[810px]' : 'w-[500px]'"
         >
             <div class="flex justify-between items-center mb-2">
-                <h2 class="text-lg font-semibold text-green-800">Data Table</h2>
+                <div class="flex gap-2">
+                    <h2 class="text-lg font-semibold text-green-800">
+                        Data Table
+                    </h2>
+                    <button
+                        v-if="analysisResults"
+                        @click="exportToExcel"
+                        :disabled="isExporting"
+                        class="bg-green-500 text-white px-2 py-1 rounded-md hover:bg-green-600 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <span v-if="!isExporting">Export to Excel</span>
+                        <span v-else class="flex items-center justify-center">
+                            <svg
+                                class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                            >
+                                <circle
+                                    class="opacity-25"
+                                    cx="12"
+                                    cy="12"
+                                    r="10"
+                                    stroke="currentColor"
+                                    stroke-width="4"
+                                ></circle>
+                                <path
+                                    class="opacity-75"
+                                    fill="currentColor"
+                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                ></path>
+                            </svg>
+                            Exporting...
+                        </span>
+                    </button>
+                </div>
                 <button
                     @click="toggleMinimize"
                     class="text-green-600 hover:text-green-800"
@@ -35,24 +70,17 @@
                         @input="handleSearch"
                         type="text"
                         placeholder="Search Producer Name..."
-                        class="flex-1 px-3 py-2 text-sm border border-green-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        class="w-1/2 px-3 py-2 text-sm border border-green-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
-                    <input
-                        v-model="productionPlaceQuery"
-                        @input="handleSearch"
-                        type="text"
-                        placeholder="Search Production Place..."
-                        class="flex-1 px-3 py-2 text-sm border border-green-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                    />
-                </div>
-                <div v-if="analysisResults" class="flex space-x-2">
                     <input
                         v-model="locationQuery"
                         @input="handleSearch"
                         type="text"
                         placeholder="Search Country/Province/District..."
-                        class="flex-1 px-3 py-2 text-sm border border-green-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        class="w-1/2 px-3 py-2 text-sm border border-green-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
+                </div>
+                <div v-if="analysisResults" class="flex space-x-2">
                     <select
                         v-model="isOnLandQuery"
                         @change="handleSearch"
@@ -62,13 +90,24 @@
                         <option value="true">Yes</option>
                         <option value="false">No</option>
                     </select>
-                    <input
+                    <select
                         v-model="validityQuery"
-                        @input="handleSearch"
-                        type="text"
-                        placeholder="Search Validity..."
+                        @change="handleSearch"
                         class="flex-1 px-3 py-2 text-sm border border-green-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                    />
+                    >
+                        <option value="">All (Validity)</option>
+                        <option value="valid">Valid</option>
+                        <option value="invalid">Invalid</option>
+                    </select>
+                    <select
+                        v-model="isDuplicatedQuery"
+                        @change="handleSearch"
+                        class="flex-1 px-3 py-2 text-sm border border-green-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    >
+                        <option value="">All (Is Duplicated)</option>
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
+                    </select>
                 </div>
                 <div class="flex space-x-2">
                     <button
@@ -118,17 +157,12 @@
                 <table
                     class="min-w-full bg-white border border-green-200 text-xs"
                 >
-                    <thead class="bg-green-100">
+                    <thead class="bg-green-100 text-center">
                         <tr>
                             <th
                                 class="py-2 px-4 border-b border-green-200 text-green-800"
                             >
                                 ID
-                            </th>
-                            <th
-                                class="py-2 px-4 border-b border-green-200 text-green-800"
-                            >
-                                Producer Name
                             </th>
                             <th
                                 v-show="!analysisResults"
@@ -139,12 +173,27 @@
                             <th
                                 class="py-2 px-4 border-b border-green-200 text-green-800"
                             >
-                                Production Place
+                                Supplier
                             </th>
                             <th
                                 class="py-2 px-4 border-b border-green-200 text-green-800"
                             >
-                                Area
+                                Plot ID
+                            </th>
+                            <th
+                                class="py-2 px-4 border-b border-green-200 text-green-800"
+                            >
+                                Farmer ID
+                            </th>
+                            <th
+                                class="py-2 px-4 border-b border-green-200 text-green-800"
+                            >
+                                Plot Size (Ha)
+                            </th>
+                            <th
+                                class="py-2 px-4 border-b border-green-200 text-green-800"
+                            >
+                                Farmer Name
                             </th>
                             <th
                                 v-show="analysisResults"
@@ -176,6 +225,18 @@
                             >
                                 Validity
                             </th>
+                            <th
+                                v-show="analysisResults"
+                                class="py-2 px-4 border-b border-green-200 text-green-800"
+                            >
+                                Is Duplicated
+                            </th>
+                            <th
+                                v-show="analysisResults"
+                                class="py-2 px-4 border-b border-green-200 text-green-800"
+                            >
+                                Duplicated With (?)
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
@@ -185,22 +246,35 @@
                             class="hover:bg-green-50"
                         >
                             <td class="py-2 px-4 border-b border-green-100">
-                                {{ index + 1 }}
-                            </td>
-                            <td class="py-2 px-4 border-b border-green-100">
-                                {{ item.data.properties.ProducerName }}
+                                {{
+                                    !analysisResults
+                                        ? index + 1
+                                        : item.data.properties.ID
+                                }}
                             </td>
                             <td
                                 v-show="!analysisResults"
                                 class="py-2 px-4 border-b border-green-100"
                             >
-                                {{ item.data.properties.ProducerCountry }}
+                                {{
+                                    item.data.properties.ProducerCountry ||
+                                    item.data.properties.Country
+                                }}
                             </td>
                             <td class="py-2 px-4 border-b border-green-100">
-                                {{ item.data.properties.ProductionPlace }}
+                                {{ item.data.properties.Supplier }}
                             </td>
                             <td class="py-2 px-4 border-b border-green-100">
-                                {{ item.data.properties.area }}
+                                {{ item.data.properties.Plot_ID }}
+                            </td>
+                            <td class="py-2 px-4 border-b border-green-100">
+                                {{ item.data.properties.Farmer_ID }}
+                            </td>
+                            <td class="py-2 px-4 border-b border-green-100">
+                                {{ item.data.properties.Plot_Size }}
+                            </td>
+                            <td class="py-2 px-4 border-b border-green-100">
+                                {{ item.data.properties.Farmer_Name }}
                             </td>
                             <td
                                 v-show="analysisResults"
@@ -244,6 +318,30 @@
                             >
                                 {{ item.data.properties.validity }}
                             </td>
+                            <td
+                                v-show="analysisResults"
+                                class="py-2 px-4 border-b border-green-100"
+                            >
+                                <span
+                                    :class="
+                                        item.data.properties.is_duplicated
+                                            ? 'bg-green-500 text-white rounded-sm px-2 py-1'
+                                            : 'bg-red-500 text-white rounded-sm px-2 py-1'
+                                    "
+                                >
+                                    {{
+                                        item.data.properties.is_duplicated
+                                            ? 'Yes'
+                                            : 'No'
+                                    }}
+                                </span>
+                            </td>
+                            <td
+                                v-show="analysisResults"
+                                class="py-2 px-4 border-b border-green-100"
+                            >
+                                {{ item.data.properties.duplicated_with }}
+                            </td>
                         </tr>
                     </tbody>
                 </table>
@@ -278,6 +376,8 @@
 
 <script setup>
 import { ref, computed, watch, defineExpose } from 'vue';
+import * as XLSX from 'xlsx';
+
 import { geojsonStore } from '../stores/geojsonStore';
 import { toast } from 'vue3-toastify';
 import 'vue3-toastify/dist/index.css';
@@ -289,32 +389,30 @@ const itemsPerPage = 20;
 let currentPage = 0;
 const tableContainer = ref(null);
 const producerNameQuery = ref('');
-const productionPlaceQuery = ref('');
 const analysisResults = ref(null);
 const isAnalyzing = ref(false);
+const isExporting = ref(false);
+
 const showAnalysisResults = ref(false);
 
 const locationQuery = ref('');
 const isOnLandQuery = ref('');
 const validityQuery = ref('');
+const isDuplicatedQuery = ref('');
 
 const emit = defineEmits(['analyze-request']);
 
 const filteredData = computed(() => {
     return geojsonData.value.filter((item) => {
         const producerName = item.data.properties.ProducerName.toLowerCase();
-        const productionPlace =
-            item.data.properties.ProductionPlace.toLowerCase();
         const nameMatch = producerName.includes(
             producerNameQuery.value.toLowerCase()
-        );
-        const placeMatch = productionPlace.includes(
-            productionPlaceQuery.value.toLowerCase()
         );
 
         let locationMatch = true;
         let onLandMatch = true;
         let validityMatch = true;
+        let duplicatedMatch = true;
 
         if (analysisResults.value) {
             const location = `${item.data.properties.country || ''} ${
@@ -330,17 +428,24 @@ const filteredData = computed(() => {
                     (isOnLandQuery.value === 'true');
             }
 
-            validityMatch = item.data.properties.validity
-                .toLowerCase()
-                .includes(validityQuery.value.toLowerCase());
+            if (validityQuery.value !== '') {
+                validityMatch =
+                    item.data.properties.validity === validityQuery.value;
+            }
+
+            if (isDuplicatedQuery.value !== '') {
+                duplicatedMatch =
+                    item.data.properties.is_duplicated ===
+                    (isDuplicatedQuery.value === 'true');
+            }
         }
 
         return (
             nameMatch &&
-            placeMatch &&
             locationMatch &&
             onLandMatch &&
-            validityMatch
+            validityMatch &&
+            duplicatedMatch
         );
     });
 });
@@ -353,10 +458,10 @@ const handleSearch = () => {
 
 const resetFilters = () => {
     producerNameQuery.value = '';
-    productionPlaceQuery.value = '';
     locationQuery.value = '';
     isOnLandQuery.value = '';
     validityQuery.value = '';
+    isDuplicatedQuery.value = '';
     handleSearch();
 };
 
@@ -400,6 +505,46 @@ const analyzeData = () => {
     toast.info('Analyzing data...');
     isAnalyzing.value = true;
     emit('analyze-request');
+};
+
+const exportToExcel = async () => {
+    if (isExporting.value) return;
+
+    isExporting.value = true;
+    try {
+        const allData = await geojsonStore.getAllGeoJSON();
+
+        const excelData = allData.map((item) => ({
+            ID: item.data.properties.ID,
+            Supplier: item.data.properties.Supplier,
+            Plot_ID: item.data.properties.Plot_ID,
+            Farmer_ID: item.data.properties.Farmer_ID,
+            Plot_Size: item.data.properties.Plot_Size,
+            Farmer_Name: item.data.properties.Farmer_Name,
+            Country: item.data.properties.country,
+            Province: item.data.properties.province,
+            District: item.data.properties.district,
+            Located_On_Land: item.data.properties.located_on_land
+                ? 'Yes'
+                : 'No',
+            Validity: item.data.properties.validity,
+            Is_Duplicated: item.data.properties.is_duplicated ? 'Yes' : 'No',
+            Duplicated_With: item.data.properties.duplicated_with,
+        }));
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(excelData);
+        XLSX.utils.book_append_sheet(wb, ws, 'GeoJSON Data');
+
+        XLSX.writeFile(wb, 'geojson_data_export.xlsx');
+
+        toast.success('Data exported successfully!');
+    } catch (error) {
+        console.error('Error exporting data:', error);
+        toast.error('Failed to export data. Please try again.');
+    } finally {
+        isExporting.value = false;
+    }
 };
 
 defineExpose({
